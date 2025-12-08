@@ -115,37 +115,6 @@ Nunca trabalhe em duas máquinas simultaneamente sem antes sincronizar.
 
 Para projetos Flutter, use um .gitignore adequado (excluir build/, .dart_tool/, etc.).
 
-📂 8. Arquivo .gitignore recomendando para Flutter
-
-Crie um arquivo .gitignore com o conteúdo:
-
-# Flutter/Dart/Pub related
-.dart_tool/
-.packages
-.pub-cache/
-.pub/
-build/
-
-# IntelliJ
-*.iml
-*.ipr
-*.iws
-
-# VSCode
-.vscode/
-
-# Flutter generated
-android/app/debug
-android/app/profile
-android/app/release
-
-# Misc
-*.log
-*.tmp
-*.temp
-
-
-Isso evita enviar arquivos pesados e desnecessários para o GitHub.
 
 🎉 Pronto!
 
