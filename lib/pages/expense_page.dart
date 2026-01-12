@@ -1,5 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
+
+
+class CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remove tudo que não é número
+    String newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    if (newText.isEmpty) {
+      return const TextEditingValue(
+        text: '0.00',
+        selection: TextSelection.collapsed(offset: 4),
+      );
+    }
+
+    // Converte para inteiro (centavos)
+    int value = int.parse(newText);
+    
+    // Divide por 100 para ter os centavos
+    double amount = value / 100.0;
+    
+    // Formata com 2 casas decimais
+    String formatted = amount.toStringAsFixed(2);
+    
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class ExpensePage extends StatefulWidget {
   const ExpensePage({super.key});
@@ -19,12 +53,13 @@ class _ExpensePageState extends State<ExpensePage> {
 
   List<String> categories = [];
 
-  // Cores Temáticas
-  static const Color _primaryColor = Color(0xFF2962FF);
-  static const Color _backgroundColor = Color(0xFF1A202C);
-  static const Color _cardColor = Color(0xFF2D3748);
-  static const Color _successColor = Color(0xFF4CAF50);
-  static const Color _warningColor = Color(0xFFFF6B6B);
+// Cores Temáticas – GASTOS
+static const Color _primaryColor = Color(0xFFFF1744); // Vermelho forte
+static const Color _backgroundColor = Color(0xFF000000); // Preto
+static const Color _cardColor = Color(0xFF121212); // Preto elevado
+static const Color _successColor = Color(0xFF2E7D32); // Verde discreto (se precisar)
+static const Color _warningColor = Color(0xFFD50000); // Vermelho alerta
+
 
   @override
   void initState() {
@@ -32,11 +67,13 @@ class _ExpensePageState extends State<ExpensePage> {
     loadCategories();
   }
 
-  @override
-  void dispose() {
-    valueController.dispose();
-    super.dispose();
-  }
+  
+@override
+void dispose() {
+  valueController.dispose();
+  descricaoController.dispose();
+  super.dispose();
+}
 
   Future<void> loadCategories() async {
     try {
@@ -53,80 +90,97 @@ class _ExpensePageState extends State<ExpensePage> {
     }
   }
 
-  Future<void> saveExpense() async {
+  // Adicionar controlador para descrição
+final descricaoController = TextEditingController();
+
+
+// Atualização do saveExpense
+Future<void> saveExpense() async {
+  setState(() {
+    loading = true;
+    errorMessage = '';
+  });
+
+  final user = Supabase.instance.client.auth.currentUser;
+
+  if (user == null) {
     setState(() {
-      loading = true;
-      errorMessage = '';
+      errorMessage = "Usuário não encontrado!";
+      loading = false;
+    });
+    return;
+  }
+
+  if (selectedCategory == null) {
+    setState(() {
+      errorMessage = "Selecione uma categoria!";
+      loading = false;
+    });
+    return;
+  }
+
+  double? valor = double.tryParse(valueController.text);
+  if (valor == null || valor <= 0) {
+    setState(() {
+      errorMessage = "Valor inválido!";
+      loading = false;
+    });
+    return;
+  }
+
+  final descricao = descricaoController.text.trim();
+
+  try {
+    await Supabase.instance.client.from('expenses').insert({
+      'type': selectedCategory,
+      'value': valor,
+      'description': descricao, // ✅ novo campo
+      'user_id': user.id,
     });
 
-    final user = Supabase.instance.client.auth.currentUser;
+    setState(() {
+      savedExpenseValue = valor;
+      showSuccessResult = true;
+      loading = false;
+    });
 
-    if (user == null) {
-      setState(() {
-        errorMessage = "Usuário não encontrado!";
-        loading = false;
-      });
-      return;
-    }
+    print('✅ Gasto salvo: R\$ ${valor.toStringAsFixed(2)}');
+    print('📁 Categoria: $selectedCategory');
+    print('📝 Descrição: $descricao');
 
-    if (selectedCategory == null) {
-      setState(() {
-        errorMessage = "Selecione uma categoria!";
-        loading = false;
-      });
-      return;
-    }
-
-    double? valor = double.tryParse(valueController.text.replaceAll(',', '.'));
-
-    if (valor == null || valor <= 0) {
-      setState(() {
-        errorMessage = "Valor inválido!";
-        loading = false;
-      });
-      return;
-    }
-
-    try {
-      await Supabase.instance.client.from('expenses').insert({
-        'type': selectedCategory,
-        'value': valor,
-        'user_id': user.id,
-      });
-
-      setState(() {
-        savedExpenseValue = valor;
-        showSuccessResult = true;
-        loading = false;
-      });
-
-      print('✅ Gasto salvo: R\$ ${valor.toStringAsFixed(2)}');
-      print('📁 Categoria: $selectedCategory');
-
-    } catch (e) {
-      setState(() {
-        errorMessage = 'Erro ao salvar: $e';
-        loading = false;
-      });
-    }
+  } catch (e) {
+    setState(() {
+      errorMessage = 'Erro ao salvar: $e';
+      loading = false;
+    });
   }
+}
+
+
 
   void _goToHome() {
     Navigator.pop(context);
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      appBar: AppBar(
-        title: const Text('Registrar Gasto'),
-        backgroundColor: _cardColor,
-        elevation: 0,
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: _backgroundColor,
+    appBar: AppBar(
+      title: const Text(
+        'Registrar Gasto',
+        style: TextStyle(color: Colors.white),
       ),
-      body: showSuccessResult ? _buildSuccessResult() : _buildExpenseForm(),
-    );
-  }
+      backgroundColor: _primaryColor, // VERMELHO AQUI
+      iconTheme: const IconThemeData(color: Colors.white),
+      elevation: 0,
+    ),
+    body: showSuccessResult
+        ? _buildSuccessResult()
+        : _buildExpenseForm(),
+  );
+}
+
 
   // Formulário de entrada de gasto
   Widget _buildExpenseForm() {
@@ -167,26 +221,29 @@ class _ExpensePageState extends State<ExpensePage> {
 
           // Valor
           TextField(
-            controller: valueController,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-            decoration: InputDecoration(
-              labelText: 'Valor (ex: 120.00)',
-              labelStyle: const TextStyle(color: Colors.white70),
-              prefixIcon: const Icon(Icons.attach_money, color: Colors.white70),
-              filled: true,
-              fillColor: _cardColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: _primaryColor, width: 2),
-              ),
-            ),
-          ),
-
+  controller: valueController,
+  keyboardType: TextInputType.number,
+  inputFormatters: [
+    FilteringTextInputFormatter.digitsOnly,
+    CurrencyInputFormatter(), // ← ADICIONE AQUI
+  ],
+  style: const TextStyle(color: Colors.white, fontSize: 18),
+  decoration: InputDecoration(
+    labelText: 'Valor (ex: 120.00)',
+    labelStyle: const TextStyle(color: Colors.white70),
+    prefixIcon: const Icon(Icons.attach_money, color: Colors.white70),
+    filled: true,
+    fillColor: _cardColor,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide.none,
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: _primaryColor, width: 2),
+    ),
+  ),
+),
           const SizedBox(height: 30),
 
           // Mensagem de erro
@@ -205,6 +262,30 @@ class _ExpensePageState extends State<ExpensePage> {
                 textAlign: TextAlign.center,
               ),
             ),
+
+            // Descrição
+          TextField(
+            controller: descricaoController,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            decoration: InputDecoration(
+              labelText: 'Descrição do Gasto',
+              labelStyle: const TextStyle(color: Colors.white70),
+              prefixIcon: const Icon(Icons.description, color: Colors.white70),
+              filled: true,
+              fillColor: _cardColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: _primaryColor, width: 2),
+              ),
+            ),
+            maxLines: 2,
+          ),
+          const SizedBox(height: 20),
+
 
           // Botão Salvar
           ElevatedButton(

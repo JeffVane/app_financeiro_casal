@@ -1,5 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
+
+// ✅ Adicione a classe CurrencyInputFormatter
+class CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    if (newText.isEmpty) {
+      return const TextEditingValue(
+        text: '0.00',
+        selection: TextSelection.collapsed(offset: 4),
+      );
+    }
+
+    int value = int.parse(newText);
+    double amount = value / 100.0;
+    String formatted = amount.toStringAsFixed(2);
+    
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class IncomePage extends StatefulWidget {
   const IncomePage({super.key});
@@ -19,11 +47,10 @@ class _IncomePageState extends State<IncomePage> {
 
   List<String> categories = [];
 
-  // Cores Temáticas
-  static const Color _primaryColor = Color(0xFF2962FF);
-  static const Color _backgroundColor = Color(0xFF1A202C);
-  static const Color _cardColor = Color(0xFF2D3748);
-  static const Color _successColor = Color(0xFF4CAF50);
+  static const Color _primaryColor = Color(0xFF00E676);
+  static const Color _backgroundColor = Color(0xFF000000);
+  static const Color _cardColor = Color(0xFF121212);
+  static const Color _successColor = Color(0xFF00C853);
 
   @override
   void initState() {
@@ -79,7 +106,8 @@ class _IncomePageState extends State<IncomePage> {
       return;
     }
 
-    double? valor = double.tryParse(valueController.text.replaceAll(',', '.'));
+    // ✅ Simplificado - agora já vem formatado
+    double? valor = double.tryParse(valueController.text);
 
     if (valor == null || valor <= 0) {
       setState(() {
@@ -90,14 +118,12 @@ class _IncomePageState extends State<IncomePage> {
     }
 
     try {
-      // Salva o ganho
       await Supabase.instance.client.from('incomes').insert({
         'type': selectedCategory,
         'value': valor,
         'user_id': user.id,
       });
 
-      // Calcula o dízimo (10% do valor)
       final tithe = valor * 0.10;
 
       setState(() {
@@ -126,22 +152,24 @@ class _IncomePageState extends State<IncomePage> {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        title: const Text('Registrar Ganho'),
-        backgroundColor: _cardColor,
+        title: const Text(
+          'Registrar Ganho',
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: _primaryColor,
+        iconTheme: const IconThemeData(color: Colors.black),
         elevation: 0,
       ),
       body: showTitheResult ? _buildTitheResult() : _buildIncomeForm(),
     );
   }
 
-  // Formulário de entrada de ganho
   Widget _buildIncomeForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Categoria
           DropdownButtonFormField<String>(
             decoration: InputDecoration(
               labelText: 'Categoria do Ganho',
@@ -171,10 +199,14 @@ class _IncomePageState extends State<IncomePage> {
 
           const SizedBox(height: 20),
 
-          // Valor
+          // ✅ TextField com formatação automática
           TextField(
             controller: valueController,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              CurrencyInputFormatter(),
+            ],
             style: const TextStyle(color: Colors.white, fontSize: 18),
             decoration: InputDecoration(
               labelText: 'Valor (ex: 2500.00)',
@@ -195,7 +227,6 @@ class _IncomePageState extends State<IncomePage> {
 
           const SizedBox(height: 30),
 
-          // Mensagem de erro
           if (errorMessage.isNotEmpty)
             Container(
               padding: const EdgeInsets.all(12),
@@ -212,7 +243,6 @@ class _IncomePageState extends State<IncomePage> {
               ),
             ),
 
-          // Botão Salvar
           ElevatedButton(
             onPressed: loading ? null : saveIncome,
             style: ElevatedButton.styleFrom(
@@ -245,9 +275,9 @@ class _IncomePageState extends State<IncomePage> {
     );
   }
 
-  // Tela de resultado com dízimo
   Widget _buildTitheResult() {
-    final income = double.tryParse(valueController.text.replaceAll(',', '.')) ?? 0;
+    // ✅ Simplificado
+    final income = double.tryParse(valueController.text) ?? 0;
 
     return Center(
       child: SingleChildScrollView(
@@ -255,7 +285,6 @@ class _IncomePageState extends State<IncomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Ícone de sucesso
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -272,7 +301,6 @@ class _IncomePageState extends State<IncomePage> {
 
             const SizedBox(height: 30),
 
-            // Título
             const Text(
               'GANHO REGISTRADO!',
               style: TextStyle(
@@ -286,7 +314,6 @@ class _IncomePageState extends State<IncomePage> {
 
             const SizedBox(height: 40),
 
-            // Card com informações
             Container(
               padding: const EdgeInsets.all(25),
               decoration: BoxDecoration(
@@ -302,7 +329,6 @@ class _IncomePageState extends State<IncomePage> {
               ),
               child: Column(
                 children: [
-                  // Valor total
                   _buildInfoRow(
                     icon: Icons.account_balance_wallet,
                     label: 'Valor Total',
@@ -312,7 +338,6 @@ class _IncomePageState extends State<IncomePage> {
 
                   const Divider(height: 30, color: Colors.white24),
 
-                  // Dízimo calculado
                   _buildInfoRow(
                     icon: Icons.volunteer_activism,
                     label: 'Dízimo (10%)',
@@ -326,7 +351,6 @@ class _IncomePageState extends State<IncomePage> {
 
             const SizedBox(height: 40),
 
-            // Mensagem motivacional
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
@@ -348,7 +372,6 @@ class _IncomePageState extends State<IncomePage> {
 
             const SizedBox(height: 30),
 
-            // Botão Voltar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

@@ -5,7 +5,7 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   // Cor principal do tema, mais rica
-  static const Color _primaryColor = Color(0xFF5E35B1);
+  static const Color _primaryColor = Color(0xFF000000);
   // Cor para elementos secundários
   static const Color _lightPurple = Color(0xFF8E6DE3);
 

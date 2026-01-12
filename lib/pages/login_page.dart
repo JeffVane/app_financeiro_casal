@@ -22,11 +22,12 @@ class _LoginPageState extends State<LoginPage> {
   bool _hasStoredCredentials = false;
 
   // Cores Temáticas
-  static const Color _primaryColor = Color(0xFF2962FF);
-  static const Color _backgroundColor = Color(0xFF1A202C);
-  static const Color _cardColor = Color(0xFF2D3748);
-  static const Color _lightTextColor = Color(0xFFE2E8F0);
-  static const Color _hintColor = Color(0xFF90A4AE);
+  static const Color _primaryColor = Colors.black;      // Botões / destaques
+  static const Color _backgroundColor = Colors.black;   // Fundo da tela
+  static const Color _cardColor = Color(0xFF0D0D0D);    // Cards / inputs (quase preto)
+  static const Color _lightTextColor = Colors.white;    // Texto principal
+  static const Color _hintColor = Colors.grey;          // Placeholder / texto secundário
+
 
   @override
   void initState() {

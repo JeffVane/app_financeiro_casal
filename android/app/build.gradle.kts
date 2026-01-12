@@ -1,11 +1,9 @@
 import java.util.Properties
 import java.io.FileInputStream
 
-
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -20,7 +18,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -31,35 +29,41 @@ android {
         versionName = flutter.versionName
     }
 
-    // -------------- CONFIGURAÇÃO DE ASSINATURA --------------
+    // ---------------- CONFIGURAÇÃO DE ASSINATURA ----------------
     val keystoreProperties = Properties()
-    val keystorePropertiesFile = rootProject.file("key.properties")
-    
-    if (keystorePropertiesFile.exists()) {
-        FileInputStream(keystorePropertiesFile).use { stream ->
-            keystoreProperties.load(stream)
-        }
+val keystorePropertiesFile = rootProject.file("app/keystore/key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    FileInputStream(keystorePropertiesFile).use { stream ->
+        keystoreProperties.load(stream)
     }
+} else {
+    println("❌ key.properties não encontrado em: ${keystorePropertiesFile.absolutePath}")
+}
 
+signingConfigs {
+    maybeCreate("release").apply {
+        keyAlias = keystoreProperties["keyAlias"] as String?
+        keyPassword = keystoreProperties["keyPassword"] as String?
 
-    signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it.toString()) }
-
-            storePassword = keystoreProperties["storePassword"] as String?
+        val storeFilePath = keystoreProperties["storeFile"]?.toString()
+        if (storeFilePath != null && rootProject.file(storeFilePath).exists()) {
+            storeFile = rootProject.file(storeFilePath)
+        } else {
+            println("❌ ARQUIVO DE KEYSTORE NÃO ENCONTRADO EM: $storeFilePath")
         }
+
+        storePassword = keystoreProperties["storePassword"] as String?
     }
-    // ---------------------------------------------------------
+}
+
+    // ------------------------------------------------------------
 
     buildTypes {
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
-
             isMinifyEnabled = true
             isShrinkResources = true
-
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 file("proguard-rules.pro")
@@ -67,7 +71,6 @@ android {
         }
     }
 }
-
 
 flutter {
     source = "../.."
